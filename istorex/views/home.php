@@ -2,6 +2,8 @@
 include '_header.php';
 ?>
 
+<link rel="stylesheet" href="../public/css/home.css">
+
 <div class="banner">
     <img src="../public/images/banner/banner1.jpg" class="banner-slide" alt="Banner 1">
     <img src="../public/images/banner/banner2.jpg" class="banner-slide" alt="Banner 2">

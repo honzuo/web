@@ -2,6 +2,8 @@
 include '_header.php';
 ?>
 
+<link rel="stylesheet" href="../public/css/products_detail.css">
+
 <div class="container">
     <?php if ($product): ?>
         <div class="breadcrumb">
@@ -47,14 +49,6 @@ include '_header.php';
         <p>Product not found</p>
     <?php endif; ?>
 </div>
-
-<footer>
-    &copy; 2025 iStoreX. All rights reserved.
-</footer>
-
-<script src="../public/js/script.js"></script>
-</body>
-</html>
 
 <?php
 include '_footer.php';

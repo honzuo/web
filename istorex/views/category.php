@@ -2,6 +2,8 @@
 include '_header.php';
 ?>
 
+<link rel="stylesheet" href="../public/css/categories.css">
+
 <div class="container">
     <?php if ($category): ?>
         <div class="breadcrumb">

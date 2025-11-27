@@ -1,0 +1,40 @@
+header {
+    background: #111;
+    color: #fff;
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+nav a,
+#logo {
+    color: #fff;
+    margin-left: 20px;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+nav a:hover {
+    color: #00aaff;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    margin: 20px 0;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.breadcrumb a {
+    color: #00aaff;
+    text-decoration: none;
+}
+
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb span {
+    color: #333;
+}

@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="../public/css/global.css">
     <link rel="stylesheet" href="../public/css/navigation.css">
     <link rel="stylesheet" href="../public/css/responsive.css">
+    <link rel="stylesheet" href="../public/css/profile.css">
 </head>
 
 <body>

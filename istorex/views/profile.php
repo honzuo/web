@@ -2,8 +2,6 @@
 include '_header.php';
 ?>
 
-<link rel="stylesheet" href="../public/css/profile.css">
-
 <div class="container profile-container">
     <?php if (!empty($message)): ?>
         <div class="alert alert-<?php echo $messageType; ?>" id="alertMessage">
@@ -16,9 +14,9 @@ include '_header.php';
         <div class="profile-sidebar">
             <div class="profile-avatar-section">
                 <div class="avatar-wrapper">
-                  <img src="../public/images/avatars/<?php echo htmlspecialchars($user['profile_image']); ?>"
-                  alt="Profile Image"
-                    id="profileAvatarPreview">
+                    <img src="../public/images/avatars/<?php echo htmlspecialchars($user['profile_image']); ?>" 
+                         alt="Profile Image" 
+                         id="profileAvatarPreview">
                     <div class="avatar-overlay">
                         <label for="avatarUpload" class="avatar-upload-label">
                             <span>Change Photo</span>
@@ -153,3 +151,6 @@ include '_header.php';
 <?php
 include '_footer.php';
 ?>
+
+<!-- 加载 profile.js -->
+<script src="../public/js/profile.js"></script>

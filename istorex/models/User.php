@@ -22,6 +22,18 @@ class User {
         return $user;
     }
     
+    // ⭐ 根据邮箱获取用户 - 新增方法
+    public function getUserByEmail($email) {
+        $stmt = $this->conn->prepare("SELECT id, username, email, full_name FROM users WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $user = $result->fetch_assoc();
+        $stmt->close();
+        
+        return $user;
+    }
+    
     // 更新用户信息
     public function updateProfile($userId, $data) {
         $stmt = $this->conn->prepare("
@@ -108,10 +120,11 @@ class User {
         }
         $stmt->close();
         
-        // 创建新用户
+        // 创建新用户 - 添加 role 字段
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $this->conn->prepare("INSERT INTO users (username, email, password, full_name) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("ssss", $username, $email, $hashedPassword, $fullName);
+        $role = 'member'; // 默认角色
+        $stmt = $this->conn->prepare("INSERT INTO users (role, username, email, password, full_name) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("sssss", $role, $username, $email, $hashedPassword, $fullName);
         $result = $stmt->execute();
         $userId = $stmt->insert_id;
         $stmt->close();
@@ -121,6 +134,92 @@ class User {
         }
         
         return ['success' => false, 'message' => 'Registration failed'];
+    }
+    
+    // ==================== ⭐ 密码重置功能 ====================
+    
+    // ⭐ 保存OTP到数据库
+    public function saveOTP($email, $otp) {
+        // 设置过期时间为10分钟后
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+10 minutes'));
+        
+        // 先删除该邮箱的旧OTP
+        $stmt = $this->conn->prepare("DELETE FROM password_resets WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $stmt->close();
+        
+        // 插入新OTP
+        $stmt = $this->conn->prepare("INSERT INTO password_resets (email, otp, expires_at) VALUES (?, ?, ?)");
+        $stmt->bind_param("sss", $email, $otp, $expiresAt);
+        $result = $stmt->execute();
+        $stmt->close();
+        
+        return $result;
+    }
+    
+    // ⭐ 验证OTP
+    public function verifyOTP($email, $otp) {
+        $currentTime = date('Y-m-d H:i:s');
+        
+        $stmt = $this->conn->prepare("
+            SELECT id FROM password_resets 
+            WHERE email = ? AND otp = ? AND expires_at > ? AND used = 0
+        ");
+        $stmt->bind_param("sss", $email, $otp, $currentTime);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $record = $result->fetch_assoc();
+        $stmt->close();
+        
+        if ($record) {
+            // 标记OTP为已使用
+            $stmt = $this->conn->prepare("UPDATE password_resets SET used = 1 WHERE id = ?");
+            $stmt->bind_param("i", $record['id']);
+            $stmt->execute();
+            $stmt->close();
+            
+            return ['success' => true, 'message' => 'OTP verified successfully'];
+        }
+        
+        // 检查是否是过期的OTP
+        $stmt = $this->conn->prepare("
+            SELECT id FROM password_resets 
+            WHERE email = ? AND otp = ? AND expires_at <= ?
+        ");
+        $stmt->bind_param("sss", $email, $otp, $currentTime);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $expiredRecord = $result->fetch_assoc();
+        $stmt->close();
+        
+        if ($expiredRecord) {
+            return ['success' => false, 'message' => 'OTP has expired. Please request a new one.'];
+        }
+        
+        return ['success' => false, 'message' => 'Invalid OTP code'];
+    }
+    
+    // ⭐ 重置密码
+    public function resetPassword($email, $newPassword) {
+        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+        
+        $stmt = $this->conn->prepare("UPDATE users SET password = ? WHERE email = ?");
+        $stmt->bind_param("ss", $hashedPassword, $email);
+        $result = $stmt->execute();
+        $stmt->close();
+        
+        if ($result) {
+            // 删除已使用的OTP记录
+            $stmt = $this->conn->prepare("DELETE FROM password_resets WHERE email = ?");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $stmt->close();
+            
+            return ['success' => true, 'message' => 'Password reset successfully'];
+        }
+        
+        return ['success' => false, 'message' => 'Failed to reset password'];
     }
 }
 ?>

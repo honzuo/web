@@ -15,6 +15,17 @@ class UserController
         $this->userModel = new User();
     }
 
+    // 检查当前用户是否为管理员
+    private function isAdmin()
+    {
+        if (!isset($_SESSION['user_id'])) {
+            return false;
+        }
+
+        $user = $this->userModel->getUserById($_SESSION['user_id']);
+        return isset($user['role']) && $user['role'] === 'admin';
+    }
+
     // 显示个人资料页面
     public function profile()
     {
@@ -159,7 +170,17 @@ class UserController
             if ($result['success']) {
                 $_SESSION['user_id'] = $result['user_id'];
                 $_SESSION['username'] = $result['username'];
-                header('Location: profile.php');
+                $_SESSION['role'] = $result['role'] ?? 'member';
+
+                // 根据角色跳转到不同的页面
+                if ($result['role'] === 'admin') {
+                    header('Location: admin_members.php');
+                } elseif ($result['role'] === 'staff') {
+                    header('Location: admin_orders.php');
+                } else {
+                    // member
+                    header('Location: home.php');
+                }
                 exit();
             }
 
@@ -191,7 +212,7 @@ class UserController
             } elseif (!preg_match('/^[a-zA-Z0-9_]{3,20}$/', $username)) {
                 $error = 'Username must be 3-20 characters, letters, numbers, and underscores only';
             } else {
-                $result = $this->userModel->register($username, $email, $password, $fullName);
+                $result = $this->userModel->register($username, $email, $password, $fullName, 'member');
 
                 if ($result['success']) {
                     // 注册成功，自动登录
@@ -206,6 +227,119 @@ class UserController
         }
 
         require_once __DIR__ . '/../views/register.php';
+    }
+
+    // 管理员：会员维护（列表 + 搜索 + 详情 + 注册 + 头像上传）
+    public function adminMembers()
+    {
+        // 必须登录且为管理员
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: login.php');
+            exit();
+        }
+        if (!$this->isAdmin()) {
+            header('Location: profile.php');
+            exit();
+        }
+
+        $message = '';
+        $messageType = '';
+
+        // 处理表单提交
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+            switch ($_POST['action']) {
+                case 'create_member':
+                    $fullName = $_POST['full_name'] ?? '';
+                    $username = $_POST['username'] ?? '';
+                    $email = $_POST['email'] ?? '';
+                    $password = $_POST['password'] ?? '';
+                    $confirmPassword = $_POST['confirm_password'] ?? '';
+                    $role = $_POST['role'] ?? 'member';
+
+                    if (empty($fullName) || empty($username) || empty($email) || empty($password)) {
+                        $message = 'All fields are required for registration';
+                        $messageType = 'error';
+                    } elseif ($password !== $confirmPassword) {
+                        $message = 'Passwords do not match';
+                        $messageType = 'error';
+                    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        $message = 'Invalid email format';
+                        $messageType = 'error';
+                    } else {
+                        $result = $this->userModel->register($username, $email, $password, $fullName, $role);
+                        $message = $result['message'];
+                        $messageType = $result['success'] ? 'success' : 'error';
+                    }
+                    break;
+
+                case 'upload_avatar_admin':
+                    $targetUserId = intval($_POST['user_id'] ?? 0);
+                    if ($targetUserId <= 0) {
+                        $message = 'Invalid user ID';
+                        $messageType = 'error';
+                        break;
+                    }
+
+                    if (!isset($_FILES['profile_image']) || $_FILES['profile_image']['error'] !== UPLOAD_ERR_OK) {
+                        $message = 'No file uploaded or upload error';
+                        $messageType = 'error';
+                        break;
+                    }
+
+                    $file = $_FILES['profile_image'];
+                    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                    $maxSize = 5 * 1024 * 1024; // 5MB
+
+                    if (!in_array($file['type'], $allowedTypes)) {
+                        $message = 'Invalid file type. Only JPG, PNG, and GIF are allowed';
+                        $messageType = 'error';
+                        break;
+                    }
+
+                    if ($file['size'] > $maxSize) {
+                        $message = 'File too large. Maximum size is 5MB';
+                        $messageType = 'error';
+                        break;
+                    }
+
+                    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+                    $filename = 'avatar_' . $targetUserId . '_' . time() . '.' . $extension;
+                    $uploadPath = __DIR__ . '/../public/images/avatars/';
+
+                    if (!is_dir($uploadPath)) {
+                        mkdir($uploadPath, 0755, true);
+                    }
+
+                    if (move_uploaded_file($file['tmp_name'], $uploadPath . $filename)) {
+                        if ($this->userModel->updateProfileImage($targetUserId, $filename)) {
+                            $message = 'Profile image updated successfully';
+                            $messageType = 'success';
+                        } else {
+                            $message = 'Failed to update profile image in database';
+                            $messageType = 'error';
+                        }
+                    } else {
+                        $message = 'Failed to upload image';
+                        $messageType = 'error';
+                    }
+                    break;
+            }
+        }
+
+        // 基础搜索
+        $search = $_GET['q'] ?? '';
+        $members = $this->userModel->getUsers($search);
+
+        // 选中的会员详情
+        $selectedMember = null;
+        if (isset($_GET['id'])) {
+            $memberId = intval($_GET['id']);
+            if ($memberId > 0) {
+                $selectedMember = $this->userModel->getUserById($memberId);
+            }
+        }
+
+        require_once __DIR__ . '/../views/admin_members.php';
     }
 
     // 登出

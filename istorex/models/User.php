@@ -12,7 +12,7 @@ class User {
     
     // 获取用户信息
     public function getUserById($userId) {
-        $stmt = $this->conn->prepare("SELECT id, username, email, full_name, phone, address, profile_image, created_at FROM users WHERE id = ?");
+        $stmt = $this->conn->prepare("SELECT id, username, email, full_name, phone, address, profile_image, role, created_at FROM users WHERE id = ?");
         $stmt->bind_param("i", $userId);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -80,7 +80,7 @@ class User {
     
     // 用户登录验证
     public function login($username, $password) {
-        $stmt = $this->conn->prepare("SELECT id, username, password FROM users WHERE username = ? OR email = ?");
+        $stmt = $this->conn->prepare("SELECT id, username, password, role FROM users WHERE username = ? OR email = ?");
         $stmt->bind_param("ss", $username, $username);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -88,14 +88,19 @@ class User {
         $stmt->close();
         
         if ($user && password_verify($password, $user['password'])) {
-            return ['success' => true, 'user_id' => $user['id'], 'username' => $user['username']];
+            return [
+                'success' => true,
+                'user_id' => $user['id'],
+                'username' => $user['username'],
+                'role' => $user['role']
+            ];
         }
         
         return ['success' => false, 'message' => 'Invalid username or password'];
     }
     
-    // 用户注册
-    public function register($username, $email, $password, $fullName) {
+    // 用户注册（默认 member 角色）
+    public function register($username, $email, $password, $fullName, $role = 'member') {
         // 检查用户名是否已存在
         $stmt = $this->conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
         $stmt->bind_param("ss", $username, $email);
@@ -109,9 +114,12 @@ class User {
         $stmt->close();
         
         // 创建新用户
+        if (!in_array($role, ['admin', 'member', 'staff'])) {
+            $role = 'member';
+        }
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $this->conn->prepare("INSERT INTO users (username, email, password, full_name) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("ssss", $username, $email, $hashedPassword, $fullName);
+        $stmt = $this->conn->prepare("INSERT INTO users (role, username, email, password, full_name) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("sssss", $role, $username, $email, $hashedPassword, $fullName);
         $result = $stmt->execute();
         $userId = $stmt->insert_id;
         $stmt->close();
@@ -121,6 +129,44 @@ class User {
         }
         
         return ['success' => false, 'message' => 'Registration failed'];
+    }
+
+    // 获取用户列表（带基础搜索）
+    public function getUsers($search = '') {
+        $users = [];
+
+        if (!empty($search)) {
+            $like = '%' . $search . '%';
+            $stmt = $this->conn->prepare("
+                SELECT id, username, email, full_name, phone, role, created_at 
+                FROM users
+                WHERE username LIKE ? 
+                   OR email LIKE ?
+                   OR full_name LIKE ?
+                ORDER BY created_at DESC
+            ");
+            $stmt->bind_param("sss", $like, $like, $like);
+            $stmt->execute();
+            $result = $stmt->get_result();
+        } else {
+            $result = $this->conn->query("
+                SELECT id, username, email, full_name, phone, role, created_at 
+                FROM users
+                ORDER BY created_at DESC
+            ");
+        }
+
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $users[] = $row;
+            }
+        }
+
+        if (isset($stmt)) {
+            $stmt->close();
+        }
+
+        return $users;
     }
 }
 ?>

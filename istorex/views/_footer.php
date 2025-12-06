@@ -1,7 +1,10 @@
 <footer>
-    &copy; 2025 iStoreX. All rights reserved.
+    <div class="container">
+        <p>&copy; <?php echo date('Y'); ?> iStoreX. All rights reserved.</p>
+    </div>
 </footer>
 
 <script src="../public/js/script.js"></script>
 </body>
+
 </html>

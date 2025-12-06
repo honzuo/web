@@ -7,3 +7,26 @@
         flex-direction: column;
     }
 }
+
+/* public/css/responsive.css 底部添加 */
+
+@media (max-width: 768px) {
+    .header-content {
+        flex-direction: column;
+        /* 垂直排列 */
+        gap: 15px;
+    }
+
+    nav {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 15px;
+    }
+
+    nav a {
+        margin-left: 0;
+        /* 移除左边距，改用 gap */
+        margin: 0 8px;
+    }
+}
